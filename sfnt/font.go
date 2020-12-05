@@ -167,6 +167,97 @@ func (font *Font) GsubTable() (*TableLayout, error) {
 	return font.TableLayout(TagGsub)
 }
 
+// CmapTable returns the Character to Glyph Index Mapping table.
+func (font *Font) CmapTable() (Cmap, error) {
+	s, found := font.tables[tagCmap]
+	if !found {
+		return nil, ErrMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableCmap(buf)
+}
+
+// HtmxTable returns the glyphs widths (array of size numGlyphs)
+func (font *Font) HtmxTable() ([]int, error) {
+	hhea, err := font.HheaTable()
+	if err != nil {
+		return nil, err
+	}
+
+	maxpSection, found := font.tables[TagMaxp]
+	if !found {
+		return nil, ErrMissingTable
+	}
+
+	buf, err := font.findTableBuffer(maxpSection)
+	if err != nil {
+		return nil, err
+	}
+
+	numGlyph, err := parseMaxpTable(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	htmxSection, found := font.tables[TagHmtx]
+	if !found {
+		return nil, ErrMissingTable
+	}
+
+	buf, err = font.findTableBuffer(htmxSection)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseHtmxTable(buf, uint16(hhea.NumOfLongHorMetrics), numGlyph)
+}
+
+// KernTable returns the kern table, with kerning value expressed in
+// glyph units.
+// Unless `kernFirst` is true, the priority is given to the GPOS table, then to the kern table.
+func (font *Font) KernTable(kernFirst bool) (kerns Kerns, err error) {
+	if kernFirst {
+		kerns, err = font.kernKerning()
+		if err != nil {
+			kerns, err = font.gposKerning()
+		}
+	} else {
+		kerns, err = font.gposKerning()
+		if err != nil {
+			kerns, err = font.kernKerning()
+		}
+	}
+	return
+}
+
+func (font *Font) gposKerning() (Kerns, error) {
+	gpos, err := font.GposTable()
+	if err != nil {
+		return nil, err
+	}
+
+	return gpos.parseKern()
+}
+
+func (font *Font) kernKerning() (Kerns, error) {
+	section, found := font.tables[tagKern]
+	if !found {
+		return nil, ErrMissingTable
+	}
+
+	buf, err := font.findTableBuffer(section)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseKernTable(buf)
+}
+
 func (font *Font) Table(tag Tag) (Table, error) {
 	s, found := font.tables[tag]
 	if !found {

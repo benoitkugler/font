@@ -86,6 +86,10 @@ func (f *Feature) String() string {
 type Lookup struct {
 	Type uint16 // Different enumerations for GSUB and GPOS.
 	Flag uint16 // Lookup qualifiers.
+
+	subtableOffsets []uint16 // Array of offsets to lookup subtables, from beginning of Lookup table
+	data            []byte   // input data of the lookup table
+	// markFilteringSet uint16 // Index (base 0) into GDEF mark glyph sets structure. This field is only present if bit useMarkFilteringSet of lookup flags is set.
 }
 
 // versionHeader is the beginning of on-disk format of the GPOS/GSUB version header.
@@ -129,14 +133,6 @@ type featureTable struct {
 	FeatureParams    uint16 // = NULL (reserved for offset to FeatureParams)
 	LookupIndexCount uint16 // Number of LookupList indices for this feature
 	// lookupListIndices [lookupIndexCount]uint16 // Array of indices into the LookupList — zero-based (first lookup is LookupListIndex = 0)}
-}
-
-type lookupTable struct {
-	Type          uint16 // Different enumerations for GSUB and GPOS
-	Flag          uint16 // Lookup qualifiers
-	SubTableCount uint16 // Number of subtables for this lookup
-	// subtableOffsets[subTableCount] uint16 // Array of offsets to lookup subtables, from beginning of Lookup table
-	// markFilteringSet uint16 // Index (base 0) into GDEF mark glyph sets structure. This field is only present if bit useMarkFilteringSet of lookup flags is set.
 }
 
 type langSysTable struct {
@@ -322,24 +318,37 @@ func (t *TableLayout) parseFeatureList() error {
 
 // parseLookup parses a single Lookup table. b expected to be the beginning of LookupList.
 // See https://www.microsoft.com/typography/otspec/chapter2.htm#featTbl
-func (t *TableLayout) parseLookup(b []byte, record lookupRecord) (*Lookup, error) {
-	if int(record.Offset) >= len(b) {
+func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (*Lookup, error) {
+	if int(lookupTableOffset) >= len(b) {
 		return nil, io.ErrUnexpectedEOF
 	}
 
-	r := bytes.NewReader(b[record.Offset:])
-
-	var lookup lookupTable
-	if err := binary.Read(r, binary.BigEndian, &lookup); err != nil {
-		return nil, fmt.Errorf("reading lookupTable: %s", err)
+	b = b[lookupTableOffset:]
+	const tableHeaderSize = 6
+	if len(b) < tableHeaderSize {
+		return nil, io.ErrUnexpectedEOF
 	}
 
-	// TODO Read lookup.Subtable
+	type_ := be.Uint16(b)
+	flag := be.Uint16(b[2:])
+	subTableCount := be.Uint16(b[4:])
+
+	if len(b) < tableHeaderSize+2*int(subTableCount) {
+		return nil, io.ErrUnexpectedEOF
+	}
+
+	subtableOffsets := make([]uint16, subTableCount)
+	for i := range subtableOffsets {
+		subtableOffsets[i] = be.Uint16(b[tableHeaderSize+2*i:])
+	}
+
 	// TODO Read lookup.MarkFilteringSet
 
 	return &Lookup{
-		Type: lookup.Type,
-		Flag: lookup.Flag, // TODO Parse the type Enum
+		Type:            type_,
+		Flag:            flag, // TODO Parse the type Enum
+		subtableOffsets: subtableOffsets,
+		data:            b,
 	}, nil
 }
 
@@ -361,12 +370,12 @@ func (t *TableLayout) parseLookupList() error {
 
 	t.Lookups = nil
 	for i := 0; i < int(count); i++ {
-		var record lookupRecord
-		if err := binary.Read(r, binary.BigEndian, &record); err != nil {
+		var lookupTableOffset uint16
+		if err := binary.Read(r, binary.BigEndian, &lookupTableOffset); err != nil {
 			return fmt.Errorf("reading lookupRecord[%d]: %s", i, err)
 		}
 
-		lookup, err := t.parseLookup(b, record)
+		lookup, err := t.parseLookup(b, lookupTableOffset)
 		if err != nil {
 			return err
 		}

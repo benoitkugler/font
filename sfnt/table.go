@@ -39,7 +39,7 @@ func newUnparsedTable(tag Tag, buffer []byte) (Table, error) {
 	return &unparsedTable{baseTable(tag), buffer}, nil
 }
 
-func (font *Font) parseTable(s *tableSection) (Table, error) {
+func (font *Font) findTableBuffer(s *tableSection) ([]byte, error) {
 	var buf []byte
 
 	if s.length != 0 && s.length < s.zLength {
@@ -59,6 +59,14 @@ func (font *Font) parseTable(s *tableSection) (Table, error) {
 		if _, err := font.file.ReadAt(buf, int64(s.offset)); err != nil {
 			return nil, err
 		}
+	}
+	return buf, nil
+}
+
+func (font *Font) parseTable(s *tableSection) (Table, error) {
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
 	}
 
 	parser, found := parsers[s.tag]

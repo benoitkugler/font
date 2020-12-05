@@ -25,6 +25,9 @@ var (
 	// TagGsub represents the 'GSUB' table, which contains Glyph Substitution features
 	TagGsub = MustNamedTag("GSUB")
 
+	tagCmap = MustNamedTag("cmap") // not exported since not part of the Table API
+	tagKern = MustNamedTag("kern") // not exported since not part of the Table API
+
 	// TypeTrueType is the first four bytes of an OpenType file containing a TrueType font
 	TypeTrueType = Tag{0x00010000}
 	// TypeAppleTrueType is the first four bytes of an OpenType file containing a TrueType font
