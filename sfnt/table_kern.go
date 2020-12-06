@@ -27,7 +27,7 @@ func (s simpleKerns) KernPair(left, right GlyphIndex) (int16, bool) {
 
 func (s simpleKerns) Size() int { return len(s) }
 
-// assume non overlapping kerns
+// assume non overlapping kerns, otherwise the return value is undefined
 type kernUnions []Kerns
 
 func (ks kernUnions) KernPair(left, right GlyphIndex) (int16, bool) {
@@ -108,7 +108,9 @@ func parseKernFormat0(input []byte, out simpleKerns) (int, error) {
 		return 0, errInvalidKernTable
 	}
 
-	// we opt for a brute force approach
+	// we opt for a brute force approach:
+	// we could instead store a slice of {left, right, value} to reduce
+	// memory usage
 	for i := 0; i < int(numPairs); i++ {
 		left := GlyphIndex(be.Uint16(input[entrySize*i:]))
 		right := GlyphIndex(be.Uint16(input[entrySize*i+2:]))
