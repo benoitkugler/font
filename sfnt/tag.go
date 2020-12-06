@@ -27,6 +27,7 @@ var (
 
 	tagCmap = MustNamedTag("cmap") // not exported since not part of the Table API
 	tagKern = MustNamedTag("kern") // not exported since not part of the Table API
+	tagPost = MustNamedTag("post") // not exported since not part of the Table API
 
 	// TypeTrueType is the first four bytes of an OpenType file containing a TrueType font
 	TypeTrueType = Tag{0x00010000}

@@ -182,24 +182,48 @@ func (font *Font) CmapTable() (Cmap, error) {
 	return parseTableCmap(buf)
 }
 
-// HtmxTable returns the glyphs widths (array of size numGlyphs)
-func (font *Font) HtmxTable() ([]int, error) {
-	hhea, err := font.HheaTable()
-	if err != nil {
-		return nil, err
+// PostTable returns the Post table names
+func (font *Font) PostTable() (PostTable, error) {
+	s, found := font.tables[tagPost]
+	if !found {
+		return PostTable{}, ErrMissingTable
 	}
 
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return PostTable{}, err
+	}
+
+	numGlyph, err := font.numGlyphs()
+	if err != nil {
+		return PostTable{}, err
+	}
+
+	return parseTablePost(buf, numGlyph)
+}
+
+func (font *Font) numGlyphs() (uint16, error) {
 	maxpSection, found := font.tables[TagMaxp]
 	if !found {
-		return nil, ErrMissingTable
+		return 0, ErrMissingTable
 	}
 
 	buf, err := font.findTableBuffer(maxpSection)
 	if err != nil {
+		return 0, err
+	}
+
+	return parseMaxpTable(buf)
+}
+
+// HtmxTable returns the glyphs widths (array of size numGlyphs)
+func (font *Font) HtmxTable() ([]int, error) {
+	numGlyph, err := font.numGlyphs()
+	if err != nil {
 		return nil, err
 	}
 
-	numGlyph, err := parseMaxpTable(buf)
+	hhea, err := font.HheaTable()
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +233,7 @@ func (font *Font) HtmxTable() ([]int, error) {
 		return nil, ErrMissingTable
 	}
 
-	buf, err = font.findTableBuffer(htmxSection)
+	buf, err := font.findTableBuffer(htmxSection)
 	if err != nil {
 		return nil, err
 	}
