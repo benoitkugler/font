@@ -12,6 +12,9 @@ var (
 // Kerns store a compact form of the (horizontal) kerning
 // values.
 type Kerns interface {
+	// KernPair return the kern value for the given pair, if any.
+	// The value is expressed in glyph units and
+	// is negative when glyphs should be closer.
 	KernPair(left, right GlyphIndex) (int16, bool)
 	// Size returns the number of kerning pairs
 	Size() int

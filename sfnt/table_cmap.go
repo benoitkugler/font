@@ -168,7 +168,7 @@ func parseTableCmap(input []byte) (Cmap, error) {
 	}
 
 	var (
-		bestWidth  int
+		bestWidth  uint8
 		bestOffset uint32
 		bestLength uint32
 		bestFormat uint16
@@ -264,7 +264,7 @@ func supportedCmapFormat(format, pid, psid uint16) bool {
 // the legacy encodings if e.g. their repertoire is limited to the BMP, for
 // greater compatibility with older software, or because the resultant file
 // size can be smaller.
-func platformEncodingWidth(pid, psid uint16) int {
+func platformEncodingWidth(pid, psid uint16) uint8 {
 	switch pid {
 	case pidUnicode:
 		switch psid {
